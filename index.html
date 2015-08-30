@@ -1,5 +1,6 @@
 <script src="jquery.js"></script>
 <script src="typed.js"></script>
+<script src="pouchdb-4.0.0.js"></script>
 <meta charset="utf-8">
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -110,6 +111,18 @@ $(document.body).on("click.button", function(event) {
    var next_page = ($(event.target).attr('href') || "").replace("#", "");
    eval(next_page);
 })
+
+var localDB = new PouchDB('localgames');
+var remoteDB = new PouchDB('https://yarping.iriscouch.com/season1/');
+
+localDB.sync(remoteDB, {
+  live: true
+}).on('change', function (change) {
+  console.log('something changed!');
+}).on('error', function (err) {
+  console.exception(err);
+  alert('There was an error communicating with headquarters.')
+});
 
 </script>
 
