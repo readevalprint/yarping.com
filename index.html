@@ -96,17 +96,13 @@ var current_mission;
 
 function show_mission(mission_doc) {
 
-  if (current_mission && current_mission.status === "open") {
-    return;
-  }
-
   current_mission = mission_doc;
  
   console.log("new mission to display!", mission_doc);
   $("#inner").typed('reset');
   $("#inner").typed({
     showCursor: false,
-    strings: mission_doc.text || ["[Communication failure]"],
+    strings: [mission_doc.html] || ["[Communication failure]"],
     typeSpeed: 0
   });
 }
@@ -122,7 +118,7 @@ function close_mission() {
   })
 }
 
-var season_name = 'preseason6';
+var season_name = 'preseason8';
 
 var localDB = new PouchDB(season_name);
 
@@ -158,10 +154,8 @@ function i_am_ready() {
     'status': 'open',
     'user': window.localStorage.username,
     'identifier': 'showfind_other_agent_undecided',
-    'text': [
-      "<p>Good choice, " + window.localStorage.username +
-      ".^1000 <p>This screen will update with your first mission soon."
-    ]
+    'html': "<p>Good choice, " + window.localStorage.username +
+            ".^1000 <p>This screen will update with your first mission soon."
   });
 }
 
@@ -175,6 +169,8 @@ function do_missions() {
   }, {
     include_docs : true,
   }).then(function (result) {
+
+
     if (result.total_rows == 0) {
       console.log('Did not find any missions, creating the first.', result)
 
@@ -184,14 +180,16 @@ function do_missions() {
         'type': 'mission',
         'status': 'open',
         'user': window.localStorage.username,
-        'text': [
-            "<p>Welcome " +
-            window.localStorage.username +
-            ". <p>Are you ready for your first mission ? <br><button class=next onclick='javascript:i_am_ready(); return true;'>Yes, ready.</button>",
-         ]
+        'html': (
+          "<p>Welcome " +
+          window.localStorage.username +
+          ". <p>Are you ready for your first mission ? <br>" +
+          "<button class=next onclick='javascript:i_am_ready(); return true;'>Yes, ready.</button>"
+        )
       });
     } else {
-      console.log('FOUND A MISSION', result);
+      console.log('FOUND A MISSION');
+      console.table(result.docs);
       show_mission(result.rows[0].doc);
     }
   }).catch(function (err) {
@@ -208,7 +206,7 @@ function show_matches() {
   }
   rendered = true;
 
-  $("#inner").html("<h1>Yarping admin</h1>");
+  $("#inner").html("<h1>Yarping admin: Open missions</h1>");
   $("#inner").addClass("admin");
 
   localDB.query(function (doc, emit) {
@@ -244,22 +242,52 @@ function show_matches() {
         $("#inner select").on("change", function(event) {
             var new_val = $(event.target).val();
             localDB.get($(event.target).data('id')).then(function(doc) {
-              console.log("Assinging " + new_val);
-              doc.identifier = new_val;
 
-              var mission_info = new_val.split("_");
-              var color = mission_info[3];
-              var role = mission_info[0];
-
-              if (role == "show") {
-                  doc.text = ["Your screen will now turn  " + color + ".^500 Show it to the agent looking for it.^2000 <div style='position: absolute; top: 0; left: 0; height: 100%; width:100%; background-color: " + color + "'></div>"]
-              } else {
-                  doc.text = ["<p>This is your first mission:^1000 Find the other agent with a <font color=" + color + ">" + color + "</font> screen."]
-              }
-
+              doc.status = "closed";
               localDB.put(doc).then(function() {
                 console.log("Closed mission", doc);
+
+                console.log("Assinging " + new_val);
+
+                var newmission = {
+                  'type': 'mission',
+                  'status': 'open',
+                  'user': doc.user,
+                  'identifier': new_val,
+                };
+
+                var mission_info = new_val.split("_");
+                var color = mission_info[3];
+                var role = mission_info[0];
+
+                console.log(entry.doc);
+
+                if (role == "show") {
+                  newmission.html = (
+                    "Your screen will now turn  " +
+                    "<font color=" + color + "</font>" +
+                    ".^500 Show it to the agent looking for it.^2000" +
+                    " <div style='position: absolute; top: 0; left: 0; height: 100%; width:100%; background-color: " +
+                    color +
+                    "'></div>"
+                  )
+                } else {
+                  newmission.html = (
+                    "<p>This is your first mission:^1000 Find the other agent with a <font color=" +
+                    color +
+                    ">" +
+                    color +
+                    "</font> screen."
+                  )
+                }
+
+                localDB.post(newmission).then(function() {
+                  console.log("Created mission", newmission);
+                });
+
               });
+
+
             })
         })
     })
@@ -282,9 +310,7 @@ if (window.location.hash == "#admin") {
 } else {
   // regular user then
   show_mission({
-    text: [
-        "<br><span class='hexdots-loader'></span><p><br><br>Contacting headquarters ... "
-    ]
+    html: "<br><span class='hexdots-loader'></span><p><br><br>Contacting headquarters ... "
   });
   on_dbchange = do_missions;
 }
