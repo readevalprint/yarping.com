@@ -19,10 +19,11 @@ body {
   margin: 5%;
 }
 
+
 * {
-    font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif; 
-    font-weight: 300;
-    font-size: 22pt;
+  font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif; 
+  font-weight: 300;
+  font-size: 22pt;
 }
 
 p {
@@ -121,13 +122,15 @@ function close_mission() {
   })
 }
 
-var localDB = new PouchDB('preseason2');
+var season_name = 'preseason6';
+
+var localDB = new PouchDB(season_name);
 
 var remoteDB;
 if (window.location.hostname === "localhost") {
-  remoteDB = new PouchDB('http://localhost:5984/preseason3/');
+  remoteDB = new PouchDB('http://localhost:5984/' + season_name + '/');
 } else {
-  remoteDB = new PouchDB('https://yarping.iriscouch.com/season2/');
+  remoteDB = new PouchDB('https://yarping.iriscouch.com/' + season_name + '/');
 }
 
 localDB.sync(remoteDB, {
@@ -154,12 +157,14 @@ function i_am_ready() {
     'type': 'mission',
     'status': 'open',
     'user': window.localStorage.username,
+    'identifier': 'showfind_other_agent_undecided',
     'text': [
       "<p>Good choice, " + window.localStorage.username +
-      ".^2000 <p>This is your first mission:^1000 Find the other agent with a <font color=red>red</font> screen."
+      ".^1000 <p>This screen will update with your first mission soon."
     ]
   });
 }
+
 
 function do_missions() {
 
@@ -194,21 +199,76 @@ function do_missions() {
   });
 };
 
+var rendered;
+
 function show_matches() {
-  $("#inner").html("You're an admin, aren't you ?");
+
+  if (rendered) {
+      return;
+  }
+  rendered = true;
+
+  $("#inner").html("<h1>Yarping admin</h1>");
+  $("#inner").addClass("admin");
 
   localDB.query(function (doc, emit) {
     if (doc.type === "mission" && doc.status === "open") {
-      emit(doc.user);
+      emit(doc._id);
     }
   }, {
-    key: window.localStorage.username,
     include_docs : true,
   }).then(function (result) {
     console.log("open missions", result)
+
+    $(result.rows).each(function(index, entry) {
+
+        var options = [
+            "<option>not specified</option>"
+        ];
+        $(['red', 'blue', 'green']).map(function(i, color) {
+            $(['find', 'show']).map(function(j, role) {
+                var name = role + "_other_agent_" + color;
+                console.log(name, entry.doc.identifier);
+                var is_selected = ""
+                if (name === entry.doc.identifier) {
+                  is_selected = "selected=selected"
+                }
+                options.push("<option " + is_selected + " name='" + name + "' value='" + name + "'>" + name + "</option>");
+            })
+        })
+
+        var select = "<select data-id='" + entry.doc._id + "'>" + options + "</select>";
+
+        $("#inner").append("<p>" + entry.doc.user + ": " + select);
+
+        $("#inner select").on("change", function(event) {
+            var new_val = $(event.target).val();
+            localDB.get($(event.target).data('id')).then(function(doc) {
+              console.log("Assinging " + new_val);
+              doc.identifier = new_val;
+
+              var mission_info = new_val.split("_");
+              var color = mission_info[3];
+              var role = mission_info[0];
+
+              if (role == "show") {
+                  doc.text = ["Your screen will now turn  " + color + ".^500 Show it to the agent looking for it.^2000 <div style='position: absolute; top: 0; left: 0; height: 100%; width:100%; background-color: " + color + "'></div>"]
+              } else {
+                  doc.text = ["<p>This is your first mission:^1000 Find the other agent with a <font color=" + color + ">" + color + "</font> screen."]
+              }
+
+              localDB.put(doc).then(function() {
+                console.log("Closed mission", doc);
+              });
+            })
+        })
+    })
+
   }).catch(function (err) {
     console.error(err);
   });
+
+  
 
 }
 
