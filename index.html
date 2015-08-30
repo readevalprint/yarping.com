@@ -1,328 +1,200 @@
-<script src="jquery.js"></script>
-<script src="typed.js"></script>
-<script src="pouchdb-4.0.0.js"></script>
-<meta charset="utf-8">
-<link href='hexdots.css' rel='stylesheet' type='text/css'>
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="format-detection" content="telephone=no">
-<meta name = "viewport" content = "width=320, initial-scale=1.0, user-scalable = no">
-<title>Yarping</title>
+<!DOCTYPE html>
 
-<style>
-html, body {
-  margin: 0;
-  padding: 0;
-}
+<html ng-app="">
+<head>
 
-body {
-  margin: 5%;
-}
+  <script src="/pouchdb-4.0.0.min.js">
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.min.js">
+  </script>
+  <script src="//cdn.webrtc-experiment.com/RTCMultiConnection.js">
+  </script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js">
+  </script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-scrollTo/2.1.0/jquery.scrollTo.min.js"></script>
+  <script>
 
 
-* {
-  font-family: "HelveticaNeue-Light", "Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, "Lucida Grande", sans-serif; 
-  font-weight: 300;
-  font-size: 22pt;
-}
+  function generateSecret() {
+    var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    return _.sample(possible,3).join('');
+  }
+  function verifySecret(secret, peer) {
+    connection.peers[peer].sendCustomMessage(secret);
+        connection.peers[currentPeer].onCustomMessage = function(message) {
+          if (message === true){
+            console.log("MISSIOON SUCCCESSSSS");
+            score = parseInt(localStorage.getItem('score'));
+            // Convert the value to an int to make sure
+            score++;
 
-p {
-    margin-left: auto;
-    margin-right: auto;
-    line-height: 1.5em;
-}
+            localStorage.setItem("score", score);
 
-button {
-    width: 100%;
-    color: black;
-    background-color: white;
-    border: 1px solid lightgray;
-    margin-top: 2em;
-    cursor: pointer;
-}
-
-.link {
-  text-align: center;
-}
-
-a {
-  color: black;
-  border-bottom: 1px solid black;
-  text-decoration: none;
-}
-
-#outer {
-    display: table; height: 100%; #position: relative; overflow: hidden; max-width: 10cm; margin-left: auto; margin-right: auto; }
-
-#middle {
-  width: 380px;
- #position: absolute; #top: 50%;display: table-cell; vertical-align: middle;
-}
-
-#inner {
- #position: relative; #top: -50%;
- width: 380px;
-}
-
-#outer {
--webkit-transition: opacity 0.24s ease-in-out;
-   -moz-transition: opacity 0.24s ease-in-out;
-        transition: opacity 0.24s ease-in-out;
-}
-
-.wf-loading #outer {
-  opacity: 0;
-}
-
-.wf-active #outer {
-  opacity: 1;
-}
-
-.hexdots-loader {
-  left: 50%;
-  top: 2em;
-}
-
-
-</style>
-
-<div id="outer"><div id="middle"><div id="inner"></div></div></div> 
-
-<script>
-
-PouchDB.debug.enable('*');
-
-var current_mission;
-
-function show_mission(mission_doc) {
-
-  console.log("new mission to display!", mission_doc, "current is", current_mission);
-
-  if (current_mission && current_mission._id && mission_doc._id === current_mission._id) {
-    return 
+            alert("Mission Success! Current Score: " + score);
+          }
+        }
   }
 
-  current_mission = mission_doc;
+      // Convert the value to an int to make sure
+      var colors = ['red', 'green', 'blue', 'orange', 'purple'];
+      var secret = null;
+      var score = parseInt(localStorage.getItem('score')) || 0;
+      var dataChannelOptions = {
+        ordered: false, // do not guarantee order
+        maxRetransmitTime: 3000, // in milliseconds
+      };
+      var currentPeer = null;
 
-  $("#inner").typed('reset');
-  $("#inner").typed({
-    showCursor: false,
-    strings: [mission_doc.html] || ["[Communication failure]"],
-    typeSpeed: 0
-  });
-}
+      var connection = new RTCMultiConnection('startupbus');
+      var db = new PouchDB('db');
 
-function close_mission() {
-  current_mission.status = 'closed';
-  localDB.get(current_mission._id).then(function(doc) {
-    console.log("Closing mission");
-    doc.status = "closed";
-    localDB.put(doc).then(function() {
-      console.log("Closed mission", doc);
-    });
-  })
-}
+      var agents = {};
+      function updateAgents(){
+          $('#agents').text(_.keys(connection.peers).join(' '));
+      };
 
-var season_name = 'preseason8';
+      function display(color, number) {
+        $('#display').css('background-color', color).text(number);
+        $.scrollTo(".play",200);
+      }
 
-var localDB = new PouchDB(season_name);
+      function start(e) {
 
-var remoteDB;
-if (window.location.hostname === "localhost") {
-  remoteDB = new PouchDB('http://localhost:5984/' + season_name + '/');
-} else {
-  remoteDB = new PouchDB('https://yarping.iriscouch.com/' + season_name + '/');
-}
-
-localDB.sync(remoteDB, {
-  live: true,
-  retry: true,
-}).on('change', function (change) {
-  console.log('something changed!', change);
-  on_dbchange();
-}).on('paused', function (info) {
-  console.log('info!', info);
-  on_dbchange();
-}).on('active', function (info) {
-  console.log('active', info);
-  on_dbchange();
-}).on('error', function (err) {
-  console.error(err);
-  alert('There was an error communicating with headquarters.')
-});
-
-function i_am_ready() {
-  close_mission(current_mission);
-  $("button").css({'visibility': 'none'});
-  localDB.post({
-    'type': 'mission',
-    'status': 'open',
-    'created': (new Date).getTime(),
-    'user': window.localStorage.username,
-    'identifier': 'showfind_other_agent_undecided',
-    'html': "<p>Good choice, " + window.localStorage.username +
-            ".^1000 <p>This screen will update with your first mission soon."
-  });
-}
-
-
-function do_missions() {
-
-  localDB.query(function (doc, emit) {
-    if (doc.type === "mission" && doc.status === "open" && doc.user === window.localStorage.username) {
-      emit(doc._id, doc.created);
-    }
-  }, {
-    include_docs : true,
-  }).then(function (result) {
-
-
-    if (result.total_rows == 0) {
-      console.log('Did not find any missions, creating the first.', result)
-
-      window.localStorage.username = window.localStorage.username || ('agent' + (Math.floor((1000+Math.random()*1000)) - 1000));
-
-      localDB.post({
-        'type': 'mission',
-        'status': 'open',
-        'created': (new Date).getTime(),
-        'user': window.localStorage.username,
-        'html': (
-          "<p>Welcome " +
-          window.localStorage.username +
-          ". <p>Are you ready for your first mission ? <br>" +
-          "<button class=next onclick='javascript:i_am_ready(); return true;'>Yes, ready.</button>"
-        )
-      });
-    } else {
-      console.log('FOUND A MISSION');
-      console.log(result.rows);
-      show_mission(result.rows[0].doc);
-    }
-  }).catch(function (err) {
-    console.error(err);
-  });
-};
-
-var rendered;
-
-function show_matches() {
-
-  if (rendered) {
-      return;
-  }
-  rendered = true;
-
-  $("#inner").html("<h1>Yarping admin: Open missions</h1>");
-  $("#inner").addClass("admin");
-
-  localDB.query(function (doc, emit) {
-    if (doc.type === "mission" && doc.status === "open") {
-      emit(doc.created);
-    }
-  }, {
-    include_docs : true,
-    descending: true,
-  }).then(function (result) {
-    console.log("open missions", result)
-
-    $(result.rows).each(function(index, entry) {
-
-        var options = [
-            "<option>not specified</option>"
-        ];
-        $(['red', 'blue', 'green']).map(function(i, color) {
-            $(['find', 'show']).map(function(j, role) {
-                var name = role + "_other_agent_" + color;
-                console.log(name, entry.doc.identifier);
-                var is_selected = ""
-                if (name === entry.doc.identifier) {
-                  is_selected = "selected=selected"
-                }
-                options.push("<option " + is_selected + " name='" + name + "' value='" + name + "'>" + name + "</option>");
-            })
-        })
-
-        var select = "<select data-id='" + entry.doc._id + "'>" + options + "</select>";
-
-        $("#inner").append("<p>" + entry.doc.user + ": " + select);
-
-        $("#inner select").on("change", function(event) {
-            var new_val = $(event.target).val();
-            localDB.get($(event.target).data('id')).then(function(doc) {
-
-              doc.status = "closed";
-              localDB.put(doc).then(function() {
-                console.log("Closed mission", doc);
-
-                console.log("Assinging " + new_val);
-
-                var newmission = {
-                  'type': 'mission',
-                  'status': 'open',
-                  'created': (new Date).getTime(),
-                  'user': doc.user,
-                  'identifier': new_val,
-                };
-
-                var mission_info = new_val.split("_");
-                var color = mission_info[3];
-                var role = mission_info[0];
-
-                console.log(entry.doc);
-
-                if (role == "show") {
-                  newmission.html = (
-                    "Here is your first mission:" +
-                    "<p>Keep your phone's screen visible. ^500" +
-                    "You will be contacted. ^2000" +
-                    " <div style='position: absolute; top: 0; left: 0; height: 100%; width:100%; background-color: " +
-                    color +
-                    "'></div>"
-                  )
-                } else {
-                  newmission.html = (
-                    "<p>Here is your first mission:^1000 Find the other agent with a <font color=" +
-                    color +
-                    ">" +
-                    color +
-                    "</font> screen."
-                  )
-                }
-
-                localDB.post(newmission).then(function() {
-                  console.log("Created mission", newmission);
+        var color = _.sample(colors);
+        var number =  _.random(100);
+        agent = _.sample(_.without(_.keys(connection.peers), connection.userid));
+        console.log(agent);
+        connection.send({
+          agent:agent,
+          color: color,
+          number: number
                 });
 
-              });
+          _.forEach(connection.peers, function(p){
+          p.onCustomMessage = null;
+          })
 
+          currentPeer = agent
+          connection.peers[currentPeer].onCustomMessage = function(message) {
+            console.log(message);
+            console.log("accepted!" + color + number);
+            display(color, number);
+          }
+      }
 
-            })
-        })
-    })
+      $(function(){
+        connection.session = {
+          data: true  // this line suggests that don't get/use audio/video;
+          // only setup data connection
+        };
 
-  }).catch(function (err) {
-    console.error(err);
-  });
+        // setup signaling channel
+        connection.connect('bus');
 
-  
+        // open new session
+        document.getElementById('new').onclick = function(event) {
+          connection.open('bus');
+        };
+
+        connection.onopen = function(event) {
+          //alert('Text chat has been opened between you and ' + event.userid);
+          $("#new").prop("disabled",true);
+          updateAgents();
+        };
+
+        connection.onmessage = function(event) {
+          console.log('Target user ' + event.userid + ' said: ');
+          console.log(event);
+          console.log(event.data);
+          msg= event.data;
+          if(msg.agent === connection.userid && !secret) {
+          console.log('it is meeee');
+              display(msg.color, msg.number);
+              secret = generateSecret();
+          $("input[name=secret]").val(secret).prop('disabled', true);;
+
+            connection.peers[event.userid].onCustomMessage = function(message) {
+              console.log('got SECRET!');
+              console.log(message);
+              console.log("checking against " + secret);
+              if(message === secret) {
+                console.log('WOO HOO secret mission success');
+
+                connection.peers[event.userid].sendCustomMessage(true);
+                score++;
+                localStorage.setItem("score", score);
+                alert("Mission Success! Current Score: " + score);
+              }
+            }
+          connection.peers[event.userid].sendCustomMessage({accept:msg.color, secret:secret});
+          }
+        };
+        connection.ondisconnected = function(event) {
+          console.log(event.userid + " just discconected!!");
+          updateAgents();
+
+          }
+        connection.onleave = function(event) {
+          console.log(event.userid + " just left!!");
+          updateAgents();
+        };
+        $( "input[name=secret]" ).change(function() {
+          console.log();
+          var s = $( this ).val();
+          verifySecret(s, currentPeer);
+        });
+
+      })
+  </script>
+  <style>
+  body, html {
+    margin: 0;
+  }
+body {
+  font-size: 4em;
 
 }
+  .stop-scrolling {
+    height: 100%;
+      overflow: hidden;
+  }
 
+  .section {
+    height: 100vh;
+    width: 100vw;
+  }
 
-var on_dbchange;
-
-if (window.location.hash == "#admin") {
-  on_dbchange = show_matches;
-
-
-} else {
-  // regular user then
-  show_mission({
-    html: "<br><span class='hexdots-loader'></span><p><br><br>Contacting headquarters ... "
-  });
-  on_dbchange = do_missions;
+#display {
 }
+input[name=secret] {
+    font-size: inherit;
+}
+  </style>
 
-</script>
+  <title>
+  </title>
+</head>
 
+<body class="stop-scrolling">
+  <div class="section start">
+    <img src="/girl-spy.png">
+    <form>
+      <button id="new" type="button">Connect to HQ</button>
+    </form>
+
+
+Agents online: <br>
+<div id="agents"> </div>
+<button onclick="start()" id="start">Start mission</button>
+  </div>
+
+
+  <div class="section play">
+    <h1>Contact Identifier</h1>
+    <div id="display">
+    </div>
+    <label>Secret code: <input name="secret" length=2></label>
+  </div>
+
+</body>
+</html>
