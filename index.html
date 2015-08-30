@@ -96,9 +96,14 @@ var current_mission;
 
 function show_mission(mission_doc) {
 
+  console.log("new mission to display!", mission_doc, "current is", current_mission);
+
+  if (current_mission && current_mission._id && mission_doc._id === current_mission._id) {
+    return 
+  }
+
   current_mission = mission_doc;
- 
-  console.log("new mission to display!", mission_doc);
+
   $("#inner").typed('reset');
   $("#inner").typed({
     showCursor: false,
@@ -152,6 +157,7 @@ function i_am_ready() {
   localDB.post({
     'type': 'mission',
     'status': 'open',
+    'created': (new Date).getTime(),
     'user': window.localStorage.username,
     'identifier': 'showfind_other_agent_undecided',
     'html': "<p>Good choice, " + window.localStorage.username +
@@ -164,7 +170,7 @@ function do_missions() {
 
   localDB.query(function (doc, emit) {
     if (doc.type === "mission" && doc.status === "open" && doc.user === window.localStorage.username) {
-      emit(doc._id);
+      emit(doc._id, doc.created);
     }
   }, {
     include_docs : true,
@@ -179,6 +185,7 @@ function do_missions() {
       localDB.post({
         'type': 'mission',
         'status': 'open',
+        'created': (new Date).getTime(),
         'user': window.localStorage.username,
         'html': (
           "<p>Welcome " +
@@ -189,7 +196,7 @@ function do_missions() {
       });
     } else {
       console.log('FOUND A MISSION');
-      console.table(result.docs);
+      console.log(result.rows);
       show_mission(result.rows[0].doc);
     }
   }).catch(function (err) {
@@ -211,10 +218,11 @@ function show_matches() {
 
   localDB.query(function (doc, emit) {
     if (doc.type === "mission" && doc.status === "open") {
-      emit(doc._id);
+      emit(doc.created);
     }
   }, {
     include_docs : true,
+    descending: true,
   }).then(function (result) {
     console.log("open missions", result)
 
@@ -252,6 +260,7 @@ function show_matches() {
                 var newmission = {
                   'type': 'mission',
                   'status': 'open',
+                  'created': (new Date).getTime(),
                   'user': doc.user,
                   'identifier': new_val,
                 };
