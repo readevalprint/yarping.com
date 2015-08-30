@@ -2,6 +2,7 @@
 <script src="typed.js"></script>
 <script src="pouchdb-4.0.0.js"></script>
 <meta charset="utf-8">
+<link href='hexdots.css' rel='stylesheet' type='text/css'>
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="format-detection" content="telephone=no">
@@ -53,6 +54,7 @@ a {
     display: table; height: 100%; #position: relative; overflow: hidden; max-width: 10cm; margin-left: auto; margin-right: auto; }
 
 #middle {
+  width: 380px;
  #position: absolute; #top: 50%;display: table-cell; vertical-align: middle;
 }
 
@@ -75,78 +77,128 @@ a {
   opacity: 1;
 }
 
+.hexdots-loader {
+  left: 50%;
+  top: 2em;
+}
+
+
 </style>
 
 <div id="outer"><div id="middle"><div id="inner"></div></div></div> 
 
 <script>
+
 PouchDB.debug.enable('*');
 
-$("#inner").typed({
-  strings: ["<p> Welcome. <p>Contacting headquarters for instructions ... "],
-  typeSpeed: 0,
-  showCursor: false,
-});
+function show_mission(mission_doc) {
+  console.log("new mission to display!", mission_doc);
+  $("#inner").typed('reset');
+  $("#inner").typed({
+    showCursor: false,
+    strings: mission_doc.text || ["[Communication failure]"],
+    typeSpeed: 0
+  });
+}
 
-/*
-$("#inner").typed({
-  showCursor: false,
-  strings: [document.getElementById(page).innerHTML],
-  typeSpeed: 0
-});
-*/
-
-var mission1 = 
-
-$(document.body).on("click.button", function(event) {
-   var next_page = ($(event.target).attr('href') || "").replace("#", "");
-   eval(next_page);
-})
-
-var localDB = new PouchDB('localgames');
-var remoteDB = new PouchDB('https://yarping.iriscouch.com/season1/');
+var localDB = new PouchDB('preseason2');
+var remoteDB = new PouchDB('https://yarping.iriscouch.com/preseason2/');
 
 localDB.sync(remoteDB, {
   live: true,
   retry: true,
 }).on('change', function (change) {
   console.log('something changed!', change);
-  do_missions();
+  on_dbchange();
 }).on('paused', function (info) {
   console.log('info!', info);
+  on_dbchange();
 }).on('active', function (info) {
   console.log('active', info);
-  do_missions();
+  on_dbchange();
 }).on('error', function (err) {
-  console.exception(err);
+  console.error(err);
   alert('There was an error communicating with headquarters.')
 });
+
+function i_am_ready() {
+  localDB.post({
+    'type': 'mission',
+    'status': 'open',
+    'user': window.localStorage.username,
+    'text': [
+      "<p>Good choice. " +
+      window.localStorage.username +
+      ". <p>Ok, this is your first mission!"
+    ]
+  });
+}
 
 function do_missions() {
 
   localDB.query(function (doc, emit) {
-    if (doc.type === "mission") {
+    if (doc.type === "mission" && doc.user === window.localStorage.username) {
       emit(doc._id);
     }
   }, {
     include_docs : true,
-    for_user: '007',
   }).then(function (result) {
     if (result.total_rows == 0) {
-      console.log('Did not find any missions', result)
+      console.log('Did not find any missions, creating the first.', result)
+
+      window.localStorage.username = window.localStorage.username || ('agent' + (Math.floor((1000+Math.random()*1000)) - 1000));
+
       localDB.post({
         'type': 'mission',
-        'user': '007',
-        'html': "<p>Connection established. <p>Are you ready for your first mission ? <br><button class=next href='#create_first_mission'>Yes, ready.</button>"
+        'status': 'open',
+        'user': window.localStorage.username,
+        'text': [
+            "<p>Welcome " + window.localStorage.username + ". <p>Are you ready for your first mission ? <br><button class=next onclick='javascript:i_am_ready(); return true;'>Yes, ready.</button>",
+         ]
       });
     } else {
       console.log('FOUND A MISSION', result);
+      show_mission(result.rows[0].doc);
     }
   }).catch(function (err) {
-    alert('error');
+    console.error(err);
+  });
+};
+
+function show_matches() {
+  $("#inner").html("You're an admin, aren't you ?");
+
+  localDB.query(function (doc, emit) {
+    if (doc.type === "mission" && doc.status === "open") {
+      emit(doc.user);
+    }
+  }, {
+    key: window.localStorage.username,
+    include_docs : true,
+  }).then(function (result) {
+    console.log("open missions", result)
+  }).catch(function (err) {
+    console.error(err);
   });
 
-};
+}
+
+
+var on_dbchange;
+
+if (window.location.hash == "#admin") {
+  on_dbchange = show_matches;
+
+
+} else {
+  // regular user then
+  show_mission({
+    text: [
+      "<p>Contacting headquarters ... <br><span class='hexdots-loader'>"
+    ]
+  });
+  on_dbchange = do_missions;
+}
 
 </script>
 
