@@ -91,7 +91,11 @@ a {
 
 PouchDB.debug.enable('*');
 
+var current_mission;
+
 function show_mission(mission_doc) {
+  current_mission = mission_doc;
+ 
   console.log("new mission to display!", mission_doc);
   $("#inner").typed('reset');
   $("#inner").typed({
@@ -101,8 +105,18 @@ function show_mission(mission_doc) {
   });
 }
 
+function close_mission(mission_doc_id) {
+  localDB.get(mission_doc_id).then(function(doc) {
+    console.log("Closing mission");
+    doc.status = "closed";
+    localDB.put(doc).then(function() {
+      console.log("Closed mission", doc);
+    });
+  })
+}
+
 var localDB = new PouchDB('preseason2');
-var remoteDB = new PouchDB('https://yarping.iriscouch.com/preseason2/');
+var remoteDB = new PouchDB('https://yarping.iriscouch.com/season2/');
 
 localDB.sync(remoteDB, {
   live: true,
@@ -122,6 +136,7 @@ localDB.sync(remoteDB, {
 });
 
 function i_am_ready() {
+  close_mission(current_mission._id);
   localDB.post({
     'type': 'mission',
     'status': 'open',
@@ -153,7 +168,9 @@ function do_missions() {
         'status': 'open',
         'user': window.localStorage.username,
         'text': [
-            "<p>Welcome " + window.localStorage.username + ". <p>Are you ready for your first mission ? <br><button class=next onclick='javascript:i_am_ready(); return true;'>Yes, ready.</button>",
+            "<p>Welcome " +
+            window.localStorage.username +
+            ". <p>Are you ready for your first mission ? <br><button class=next onclick='javascript:i_am_ready(); return true;'>Yes, ready.</button>",
          ]
       });
     } else {
