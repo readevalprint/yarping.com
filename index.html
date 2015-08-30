@@ -122,7 +122,13 @@ function close_mission() {
 }
 
 var localDB = new PouchDB('preseason2');
-var remoteDB = new PouchDB('https://yarping.iriscouch.com/season2/');
+
+var remoteDB;
+if (window.location.hostname === "localhost") {
+  remoteDB = new PouchDB('http://localhost:5984/preseason3/');
+} else {
+  remoteDB = new PouchDB('https://yarping.iriscouch.com/season2/');
+}
 
 localDB.sync(remoteDB, {
   live: true,
@@ -143,6 +149,7 @@ localDB.sync(remoteDB, {
 
 function i_am_ready() {
   close_mission(current_mission);
+  $("button").css({'visibility': 'none'});
   localDB.post({
     'type': 'mission',
     'status': 'open',
