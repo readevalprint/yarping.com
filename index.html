@@ -94,6 +94,11 @@ PouchDB.debug.enable('*');
 var current_mission;
 
 function show_mission(mission_doc) {
+
+  if (current_mission && current_mission.status === "open") {
+    return;
+  }
+
   current_mission = mission_doc;
  
   console.log("new mission to display!", mission_doc);
@@ -105,8 +110,9 @@ function show_mission(mission_doc) {
   });
 }
 
-function close_mission(mission_doc_id) {
-  localDB.get(mission_doc_id).then(function(doc) {
+function close_mission() {
+  current_mission.status = 'closed';
+  localDB.get(current_mission._id).then(function(doc) {
     console.log("Closing mission");
     doc.status = "closed";
     localDB.put(doc).then(function() {
@@ -136,15 +142,14 @@ localDB.sync(remoteDB, {
 });
 
 function i_am_ready() {
-  close_mission(current_mission._id);
+  close_mission(current_mission);
   localDB.post({
     'type': 'mission',
     'status': 'open',
     'user': window.localStorage.username,
     'text': [
-      "<p>Good choice. " +
-      window.localStorage.username +
-      ". <p>Ok, this is your first mission!"
+      "<p>Good choice, " + window.localStorage.username +
+      ".^2000 <p>This is your first mission:^1000 Find the other agent with a <font color=red>red</font> screen."
     ]
   });
 }
@@ -152,7 +157,7 @@ function i_am_ready() {
 function do_missions() {
 
   localDB.query(function (doc, emit) {
-    if (doc.type === "mission" && doc.user === window.localStorage.username) {
+    if (doc.type === "mission" && doc.status === "open" && doc.user === window.localStorage.username) {
       emit(doc._id);
     }
   }, {
