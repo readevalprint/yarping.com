@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+
+<html ng-app="">
+<head>
+
+  <script src="/pouchdb-4.0.0.min.js">
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.min.js">
+  </script>
+  <script src="//cdn.webrtc-experiment.com/RTCMultiConnection.js">
+  </script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js">
+  </script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-scrollTo/2.1.0/jquery.scrollTo.min.js"></script>
+  <script>
+
+
+  function generateSecret() {
+    var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    return _.sample(possible,3).join('');
+  }
+  function verifySecret(secret, peer) {
+    connection.peers[peer].sendCustomMessage(secret);
+        connection.peers[currentPeer].onCustomMessage = function(message) {
+          if (message === true){
+            console.log("MISSIOON SUCCCESSSSS");
+            score = parseInt(localStorage.getItem('score'));
+            // Convert the value to an int to make sure
+            score++;
+
+            localStorage.setItem("score", score);
+
+            alert("Mission Success! Current Score: " + score);
+          }
+        }
+  }
+
+      // Convert the value to an int to make sure
+      var colors = ['red', 'green', 'blue', 'orange', 'purple'];
+      var secret = null;
+      var score = parseInt(localStorage.getItem('score')) || 0;
+      var dataChannelOptions = {
+        ordered: false, // do not guarantee order
+        maxRetransmitTime: 3000, // in milliseconds
+      };
+      var currentPeer = null;
+
+      var connection = new RTCMultiConnection('startupbus');
+      var db = new PouchDB('db');
+
+      var agents = {};
+      function updateAgents(){
+          $('#agents').text(_.keys(connection.peers).join(' '));
+      };
+
+      function display(color, number) {
+        $('#display').css('background-color', color).text(number);
+        $.scrollTo(".play",200);
+      }
+
+      function start(e) {
+
+        var color = _.sample(colors);
+        var number =  _.random(100);
+        agent = _.sample(_.without(_.keys(connection.peers), connection.userid));
+        console.log(agent);
+        connection.send({
+          agent:agent,
+          color: color,
+          number: number
+                });
+
+          _.forEach(connection.peers, function(p){
+          p.onCustomMessage = null;
+          })
+
+          currentPeer = agent
+          connection.peers[currentPeer].onCustomMessage = function(message) {
+            console.log(message);
+            console.log("accepted!" + color + number);
+            display(color, number);
+          }
+      }
+
+      $(function(){
+        connection.session = {
+          data: true  // this line suggests that don't get/use audio/video;
+          // only setup data connection
+        };
+
+        // setup signaling channel
+        connection.connect('bus');
+
+        // open new session
+        document.getElementById('new').onclick = function(event) {
+          connection.open('bus');
+        };
+
+        connection.onopen = function(event) {
+          //alert('Text chat has been opened between you and ' + event.userid);
+          $("#new").prop("disabled",true);
+          updateAgents();
+        };
+
+        connection.onmessage = function(event) {
+          console.log('Target user ' + event.userid + ' said: ');
+          console.log(event);
+          console.log(event.data);
+          msg= event.data;
+          if(msg.agent === connection.userid && !secret) {
+          console.log('it is meeee');
+              display(msg.color, msg.number);
+              secret = generateSecret();
+          $("input[name=secret]").val(secret).prop('disabled', true);;
+
+            connection.peers[event.userid].onCustomMessage = function(message) {
+              console.log('got SECRET!');
+              console.log(message);
+              console.log("checking against " + secret);
+              if(message === secret) {
+                console.log('WOO HOO secret mission success');
+
+                connection.peers[event.userid].sendCustomMessage(true);
+                score++;
+                localStorage.setItem("score", score);
+                alert("Mission Success! Current Score: " + score);
+              }
+            }
+          connection.peers[event.userid].sendCustomMessage({accept:msg.color, secret:secret});
+          }
+        };
+        connection.ondisconnected = function(event) {
+          console.log(event.userid + " just discconected!!");
+          updateAgents();
+
+          }
+        connection.onleave = function(event) {
+          console.log(event.userid + " just left!!");
+          updateAgents();
+        };
+        $( "input[name=secret]" ).change(function() {
+          console.log();
+          var s = $( this ).val();
+          verifySecret(s, currentPeer);
+        });
+
+      })
+  </script>
+  <style>
+  body, html {
+    margin: 0;
+  }
+body {
+  font-size: 4em;
+
+}
+  .stop-scrolling {
+    height: 100%;
+      overflow: hidden;
+  }
+
+  .section {
+    height: 100vh;
+    width: 100vw;
+  }
+
+#display {
+}
+input[name=secret] {
+    font-size: inherit;
+}
+  </style>
+
+  <title>
+  </title>
+</head>
+
+<body class="stop-scrolling">
+  <div class="section start">
+    <img src="/girl-spy.png">
+    <form>
+      <button id="new" type="button">Connect to HQ</button>
+    </form>
+
+
+Agents online: <br>
+<div id="agents"> </div>
+<button onclick="start()" id="start">Start mission</button>
+  </div>
+
+
+  <div class="section play">
+    <h1>Contact Identifier</h1>
+    <div id="display">
+    </div>
+    <label>Secret code: <input name="secret" length=2></label>
+  </div>
+
+</body>
+</html>
