@@ -15,8 +15,8 @@ function show_mission(mission_doc) {
   $("#inner").typed('reset');
   $("#inner").typed({
     showCursor: false,
-    strings: [mission_doc.html] || ["[Communication failure]"],
-    typeSpeed: 0
+    strings: [mission_doc.html || "[Communication failure]"],
+    typeSpeed: mission_doc.speed || 0,
   });
 }
 
@@ -31,33 +31,6 @@ function close_mission() {
   })
 }
 
-var season_name = 'preseason8';
-
-var localDB = new PouchDB(season_name);
-
-var remoteDB;
-if (window.location.hostname === "localhost") {
-  remoteDB = new PouchDB('http://localhost:5984/' + season_name + '/');
-} else {
-  remoteDB = new PouchDB('https://yarping.iriscouch.com/' + season_name + '/');
-}
-
-localDB.sync(remoteDB, {
-  live: true,
-  retry: true,
-}).on('change', function (change) {
-  console.log('something changed!', change);
-  on_dbchange();
-}).on('paused', function (info) {
-  console.log('info!', info);
-  on_dbchange();
-}).on('active', function (info) {
-  console.log('active', info);
-  on_dbchange();
-}).on('error', function (err) {
-  console.error(err);
-  alert('There was an error communicating with headquarters.')
-});
 
 function i_am_ready() {
   close_mission(current_mission);
@@ -99,7 +72,7 @@ function do_missions() {
           "<p>Welcome " +
           window.localStorage.username +
           ". <p>Are you ready for your first mission ? <br>" +
-          "<button class=next onclick='javascript:i_am_ready(); return true;'>Yes, ready.</button>"
+          "<button class=next onclick='javascript:i_am_ready(); return true;'>Confirm.</button>"
         )
       });
     } else {
@@ -217,18 +190,51 @@ function show_matches() {
 
 }
 
-
+var localDB;
+var remoteDB;
 var on_dbchange;
 
-if (window.location.hash == "#admin") {
-  on_dbchange = show_matches;
+function setup_game() {
 
+  var season_name = 'preseason8';
 
-} else {
-  // regular user then
-  show_mission({
-    html: "<br><span class='hexdots-loader'></span><p><br><br>Contacting headquarters ... "
+  localDB = new PouchDB(season_name);
+
+  if (window.location.hostname === "localhost") {
+    remoteDB = new PouchDB('http://localhost:5984/' + season_name + '/');
+  } else {
+    remoteDB = new PouchDB('https://yarping.iriscouch.com/' + season_name + '/');
+  }
+
+  localDB.sync(remoteDB, {
+    live: true,
+    retry: true,
+  }).on('change', function (change) {
+    console.log('something changed!', change);
+    on_dbchange();
+  }).on('paused', function (info) {
+    console.log('info!', info);
+    on_dbchange();
+  }).on('active', function (info) {
+    console.log('active', info);
+    on_dbchange();
+  }).on('error', function (err) {
+    console.error(err);
+    alert('There was an error communicating with headquarters.')
   });
-  on_dbchange = do_missions;
+
+
+  if (window.location.hash == "#admin") {
+    on_dbchange = show_matches;
+
+
+  } else {
+    // regular user then
+    show_mission({
+      html: "<br><span class='hexdots-loader'></span><p><br><br>Contacting headquarters ... "
+    });
+    on_dbchange = do_missions;
+  }
+
 }
 
