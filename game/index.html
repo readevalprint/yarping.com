@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title></title>
+
+  <style type="text/css">
+    body {
+      font-family: sans-serif;
+    }
+
+    .main {
+      border: 1px solid black;
+      box-shadow: 10px 10px 5px #888;
+      border-radius: 12px;
+      padding: 20px;
+      background-color: #ddd;
+      margin: 25px;
+      width: 450px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .logo {
+      width: 275px;
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+      padding: 15px;
+    }
+
+    .container {
+      -webkit-perspective: 300;
+      perspective: 300;
+    }
+    html {
+      margin: 10vh 10vw;
+      background-color: blue;
+    }
+    body {
+      background-color: red;
+      font-size: 200px;
+      height: 80vh;
+      width: 80vw;
+      text-align: center;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/3.10.1/lodash.min.js">
+  </script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js">
+  </script>
+
+</head>
+
+<body>
+
+  <script type="text/javascript">
+    init();
+
+
+    function init() {
+      if ((window.DeviceMotionEvent) || ('listenForDeviceMovement' in window)) {
+        window.addEventListener('devicemotion', deviceMotionHandler, false);
+      } else {
+        document.getElementById("dmEvent").innerHTML = "Not supported on your device or browser.  Sorry."
+      }
+    }
+
+    var rotation
+    var lastRotation;
+    var rotationDelta;
+    var threshold = 1.5;
+    var healthColors = ['red', 'orange', 'yellow', 'green', 'blue'];
+    var health = healthColors.length - 1;
+
+    function distance(a, b) {
+      var zipped = _.zip(a,b);
+      var square_diff = _.map(zipped, function(a) {return Math.pow(a[0]-a[1],2)});
+      var sum_ = _.sum(square_diff);
+      var sqrt_ = Math.sqrt(sum_);
+      return sqrt_;
+    }
+
+    function deviceMotionHandler(eventData) {
+      var info, xyz = "[X, Y, Z, D]";
+
+      // Grab the acceleration including gravity from the results
+      var acceleration = eventData.acceleration;
+      info = xyz.replace("X", round(acceleration.x));
+      info = info.replace("Y", round(acceleration.y));
+      info = info.replace("Z", round(acceleration.z));
+      //document.getElementById("moAccel").innerHTML = info;
+
+      // Grab the acceleration including gravity from the results
+      acceleration = eventData.accelerationIncludingGravity;
+      info = xyz.replace("X", round(acceleration.x));
+      info = info.replace("Y", round(acceleration.y));
+      info = info.replace("Z", round(acceleration.z));
+      //document.getElementById("moAccelGrav").innerHTML = info;
+
+      // Grab the acceleration including gravity from the results
+      rotation = eventData.rotationRate;
+      if (rotation && lastRotation) {
+        rotationDelta = distance([rotation.alpha, rotation.beta, rotation.gamma],
+          [lastRotation.alpha, lastRotation.beta, lastRotation.gamma]);
+      }
+      info = xyz.replace("X", round(rotation.alpha));
+      info = info.replace("Y", round(rotation.beta));
+      info = info.replace("Z", round(rotation.gamma));
+      info = info.replace("D", round(rotationDelta));
+
+      $("body").css( "background-color", "rgba(255, 0, 0," + rotationDelta + ")");
+      if (rotationDelta > threshold) {
+        health--;
+        var color = healthColors[health];
+        console.log(rotationDelta);
+        $("html").css( "background-color", color);
+        if(health === 0) {
+          $("body").html("&#9760;<br>MISSION FAILED");
+        }
+      }
+      //document.getElementById("moRotation").innerHTML = info;
+
+      info = eventData.interval;
+      //document.getElementById("moInterval").innerHTML = info;
+
+      lastRotation = rotation;
+    }
+
+    function round(val) {
+      var amt = 10;
+      return Math.round(val * amt) / amt;
+    }
+  </script>
+
+</body>
+
+</html>
+
