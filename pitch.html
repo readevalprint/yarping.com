@@ -1,0 +1,73 @@
+<script src="jquery.js"></script>
+<script src="typed.js"></script>
+<script src="pouchdb-4.0.0.js"></script>
+<script src="keymaster.js"></script>
+<meta charset="utf-8">
+<link href='hexdots.css' rel='stylesheet' type='text/css'>
+<link href='style.css' rel='stylesheet' type='text/css'>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="format-detection" content="telephone=no">
+<meta name = "viewport" content = "width=320, initial-scale=1.0, user-scalable = no">
+<title>Yarping</title>
+
+<div id="outer"><div id="middle"><div id="inner"></div></div></div> 
+
+<script src="script.js"></script>
+
+<script>
+
+var demo_missions = [
+
+  { html: "<span class='hexdots-loader'></span><p><br><br>Contacting headquarters ...<p><p> " },
+
+  { html: "<p>Welcome agent348.^500" + "<p>Are you ready for your first mission ? <br>" + "<button class=next onclick='javascript:next(); return true;'>Confirm.</button>"},
+
+  { html: "<p>Good choice, agent348.^1000 <p>This screen will update with your first mission soon."},
+
+  { html: "<p>This is your mission:^1000 Find the other agent with a <span style='color:rgba(0,86,255,1)'>blue</span> screen. <button class=next onclick='javascript:next(); return true;'>Contact established.</button>" },
+
+  { html: (
+          "What is the secret code ? ^500" +
+          "<button class=big onclick='javascript:next(); return true;'>&#x1F418;</button> " +
+          "<button class=big onclick='javascript:next(); return true;'>&#x1F171;</button> " +
+          "<button class=big onclick='javascript:next(); return true;'>&#x1F68C;</button> " +
+          "<button class=big onclick='javascript:next(); return true;'>&#x1F33B;</button> "
+          )
+  },
+
+  { html: "<p>Good job. You and agent922 gained our trust.^1000 <p>We'll be in touch for your next mission." }
+];
+
+var demo_mission_ptr = 0;
+
+function show_demo_mission(num) {
+  if (demo_mission_ptr < 0 || num > demo_missions.length) {
+      console.error(num, "not in demo missions")
+      return;
+  }
+  show_mission(demo_missions[num]) ;
+}
+
+function next() { show_demo_mission(demo_mission_ptr++) }
+key('right', next);
+key('space', next);
+
+function prev() { show_demo_mission(demo_mission_ptr--) }
+key('left', prev);
+
+function reset() {
+  show_mission({})
+  var demo_mission_ptr = 0;
+}
+key('0', reset);
+
+if (window.location.hash == "#phone") {
+  show_mission({
+      html: "<span style='font-size: 128px;'>&#x1F68C;</span> <div style='z-index: -2; position: absolute; top: 0; left: 0; height: 100%; width:100%; background-color: rgba(0,86,255,1);'></div>",
+  })
+}
+
+</script>
+
+
