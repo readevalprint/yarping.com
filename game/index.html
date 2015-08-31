@@ -67,9 +67,9 @@
       }
     }
 
-    var rotation
-    var lastRotation;
-    var rotationDelta;
+    var metric;
+    var lastMetric;
+    var metricDelta;
     var threshold = 1.5;
     var healthColors = ['red', 'orange', 'yellow', 'green', 'blue'];
     var health = healthColors.length - 1;
@@ -99,33 +99,34 @@
       info = info.replace("Z", round(acceleration.z));
       //document.getElementById("moAccelGrav").innerHTML = info;
 
-      // Grab the acceleration including gravity from the results
       rotation = eventData.rotationRate;
-      if (rotation && lastRotation) {
-        rotationDelta = distance([rotation.alpha, rotation.beta, rotation.gamma],
-          [lastRotation.alpha, lastRotation.beta, lastRotation.gamma]);
-      }
+
       info = xyz.replace("X", round(rotation.alpha));
       info = info.replace("Y", round(rotation.beta));
       info = info.replace("Z", round(rotation.gamma));
-      info = info.replace("D", round(rotationDelta));
 
-      $("body").css( "background-color", "rgba(255, 0, 0," + rotationDelta + ")");
-      if (rotationDelta > threshold) {
-        health--;
-        var color = healthColors[health];
-        console.log(rotationDelta);
-        $("html").css( "background-color", color);
-        if(health === 0) {
-          $("body").html("&#9760;<br>MISSION FAILED");
-        }
-      }
       //document.getElementById("moRotation").innerHTML = info;
 
       info = eventData.interval;
       //document.getElementById("moInterval").innerHTML = info;
 
-      lastRotation = rotation;
+      // Grab the acceleration including gravity from the results
+      metric = acceleration;
+      if (metric && lastMetric) {
+        metricDelta = distance([metric.x, metric.y, metric.z],
+          [lastMetric.x, lastMetric, lastMetric.z]);
+      }
+      $("body").css( "background-color", "rgba(255, 0, 0," + metricDelta + ")");
+      if (metricDelta > threshold) {
+        health--;
+        var color = healthColors[health];
+        console.log(metricDelta);
+        $("html").css( "background-color", color);
+        if(health === 0) {
+          $("body").html("&#9760;<br>MISSION FAILED");
+        }
+      }
+      lastMetric = metric;
     }
 
     function round(val) {
